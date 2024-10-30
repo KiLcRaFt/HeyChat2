@@ -1,0 +1,117 @@
+﻿<script>
+    let currentContact = null;
+    let socketId = null;
+    let currentConversationChannel = null;
+    let conversationChannelName = null;
+
+    const newMessageTpl = `
+        <div>
+            <div id="msg-{{id}}" class="row __chat__par__">
+                <div class="__chat__">
+                    <p>{{body}}</p>
+                    <p class="delivery-status">Delivered</p>
+                </div>
+            </div>
+        </div>`;
+
+    // Pusher client setup
+    const pusher = new Pusher('1887209', { cluster: 'eu' });
+
+    pusher.connection.bind('connected', function() {
+        socketId = pusher.connection.socket_id;
+    });
+
+    function getConvoChannel(user_id, contact_id) {
+        return user_id > contact_id ? `private-chat-${contact_id}-${user_id}` : `private-chat-${user_id}-${contact_id}`;
+    }
+
+    function bindClientEvents() {
+        currentConversationChannel.bind("new_message", function(msg) {
+            if (msg.receiver_id == @ViewBag.currentUser?.id ?? 0) {
+                displayMessage(msg);
+            }
+        });
+
+        currentConversationChannel.bind("message_delivered", function(msg) {
+            $('#msg-' + msg.id).find('.delivery-status').show();
+        });
+
+        currentConversationChannel.bind("client-is-typing", function(data) {
+            if (data.user_id == currentContact.id && data.contact_id == @ViewBag.currentUser?.id ?? 0) {
+                $('#typerDisplay').text(`${currentContact.name} is typing...`).fadeIn(100).delay(1000).fadeOut(300);
+            }
+        });
+    }
+
+    // Select contact to chat with
+    $('.user__item').click(function(e) {
+        e.preventDefault();
+
+        currentContact = {
+            id: $(this).data('contact-id'),
+            name: $(this).data('contact-name')
+        };
+
+        if (conversationChannelName) {
+            pusher.unsubscribe(conversationChannelName);
+        }
+
+        conversationChannelName = getConvoChannel(@ViewBag.currentUser?.id ?? 0, currentContact.id);
+        currentConversationChannel = pusher.subscribe(conversationChannelName);
+
+        bindClientEvents();
+        $('#contacts').find('li').removeClass('active');
+        $('#contacts .contact-' + currentContact.id).find('li').addClass('active');
+
+        getChat(currentContact.id);
+    });
+
+    function getChat(contact_id) {
+        $.get(`/contact/conversations/${contact_id}`)
+            .done(function(resp) {
+                const chatData = resp.data || [];
+                loadChat(chatData);
+            });
+    }
+
+    function loadChat(chatData) {
+        $('.chat__main').empty();
+        chatData.forEach(displayMessage);
+        $('.chat__body').show();
+        $('.__no__chat__').hide();
+    }
+
+    function displayMessage(messageObj) {
+        const template = newMessageTpl.replace("{{id}}", messageObj.id).replace("{{body}}", messageObj.message);
+        const messageElement = $(template);
+
+        messageElement.find('.__chat__').addClass(messageObj.sender_id == @ViewBag.currentUser?.id ? 'from__chat' : 'receive__chat');
+        if (messageObj.status == 1) {
+            messageElement.find('.delivery-status').show();
+        }
+
+        $('.chat__main').append(messageElement);
+    }
+
+    // Send button's click event
+    $('#sendMessage').click(function() {
+        $.post("/send_message", {
+            message: $('#msg_box').val(),
+            contact: currentContact.id,
+            socket_id: socketId,
+        }).done(function(data) {
+            displayMessage(data);
+            $('#msg_box').val('');
+        });
+    });
+
+    // User is typing
+    const isTypingCallback = function () {
+        currentConversationChannel.trigger("client-is-typing", {
+            user_id: @ViewBag.currentUser?.id ?? 0,
+            contact_id: currentContact.id,
+        });
+    };
+
+    $('#msg_box').on('keyup', isTypingCallback);
+</script>

@@ -38,6 +38,7 @@ namespace HeyChat2.Controllers
             return View();
         }
 
+        [HttpGet("chat/ConversationWithContact")]
         public JsonResult ConversationWithContact(int contact)
         {
             var userId = HttpContext.Session.GetInt32("userId");

@@ -58,7 +58,7 @@ namespace HeyChat2.Controllers
         }
 
         [HttpPost]
-        public JsonResult SendMessage()
+        public async Task<JsonResult> SendMessage(string message, int contact, string socket_id)
         {
             var userId = HttpContext.Session.GetInt32("userId");
 
@@ -67,31 +67,76 @@ namespace HeyChat2.Controllers
                 return Json(new { status = "error", message = "User is not logged in" });
             }
 
-            string socket_id = Request.Form["socket_id"];
-            int contactId = Convert.ToInt32(Request.Form["contact"]);
-
-            var convo = new Conversation
+            // Создание нового сообщения
+            var newConversation = new Conversation
             {
                 sender_id = userId.Value,
-                message = Request.Form["message"],
-                receiver_id = contactId
+                receiver_id = contact,
+                message = message,
+                created_at = DateTime.Now,
+                status = Conversation.messageStatus.Sent // Устанавливаем статус "Sent"
             };
 
-            _context.Conversations.Add(convo);
-            _context.SaveChanges();
+            try
+            {
+                // Добавляем новое сообщение в базу данных
+                _context.Conversations.Add(newConversation);
+                await _context.SaveChangesAsync(); // Используем асинхронное сохранение
+            }
+            catch (Exception ex)
+            {
+                // Логируем ошибку и возвращаем сообщение об ошибке
+                Console.WriteLine($"Error saving message: {ex.Message}");
+                return Json(new { status = "error", message = "Failed to send message." });
+            }
 
-            var conversationChannel = GetConvoChannel(userId.Value, contactId);
+            // Настройка Pusher для отправки события о новом сообщении
+            var options = new PusherOptions
+            {
+                Cluster = "eu"
+            };
 
-            // Отправка сообщения через Pusher
-            _pusher.TriggerAsync(
-                conversationChannel,
-                "new_message",
-                convo,
-                new TriggerOptions { SocketId = socket_id }
+            var pusher = new Pusher(
+                "1887209",
+                "c38879c0eb230cbf0252",
+                "ca21d54b92aea3d5b31f",
+                options
             );
 
-            return Json(convo);
+            var eventData = new
+            {
+                id = newConversation.id,
+                sender_id = newConversation.sender_id,
+                receiver_id = newConversation.receiver_id,
+                message = newConversation.message,
+                created_at = newConversation.created_at.ToString("yyyy-MM-dd HH:mm:ss"),
+                status = newConversation.status.ToString()
+            };
+
+            try
+            {
+                // Отправляем событие через Pusher
+                await pusher.TriggerAsync(
+                    $"private-chat-{Math.Min(userId.Value, contact)}-{Math.Max(userId.Value, contact)}",
+                    "new_message",
+                    eventData,
+                    new TriggerOptions { SocketId = socket_id }
+                );
+            }
+            catch (Exception ex)
+            {
+                // Логируем ошибку и возвращаем сообщение об ошибке
+                Console.WriteLine($"Error triggering Pusher event: {ex.Message}");
+                return Json(new { status = "error", message = "Failed to notify recipient." });
+            }
+
+            // Логируем отправленное сообщение
+            Console.WriteLine($"New Message: {newConversation.message}, Sender ID: {newConversation.sender_id}, Receiver ID: {newConversation.receiver_id}");
+
+            // Возвращаем успешный ответ
+            return Json(new { status = "success", data = eventData });
         }
+
 
         private string GetConvoChannel(int user_id, int contact_id)
         {

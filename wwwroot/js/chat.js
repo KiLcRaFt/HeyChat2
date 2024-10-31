@@ -4,14 +4,10 @@ let currentConversationChannel = null;
 let conversationChannelName = null;
 
 const newMessageTpl = `
-            <div>
-                <div id="msg-{{id}}" class="row __chat__par__">
-                    <div class="__chat__">
-                        <p>{{body}}</p>
-                        <p class="delivery-status">Delivered</p>
-                    </div>
-                </div>
-            </div>`;
+    <div class="message {{messageClass}}" id="msg-{{id}}">
+        <p>{{body}}</p>
+        <p class="delivery-status"> * Delivered</p>
+    </div>`;
 
 // Pusher client setup
 const pusher = new Pusher('1887209', { cluster: 'eu' });
@@ -26,9 +22,11 @@ function getConvoChannel(user_id, contact_id) {
 
 function bindClientEvents() {
     currentConversationChannel.bind("new_message", function (msg) {
-        if (msg.receiver_id == currentUserId) {
-            displayMessage(msg);
+        // Проверка, чтобы не дублировать сообщение, если оно отправлено самим пользователем
+        if (msg.sender_id === currentUserId && msg.receiver_id === currentContact.id) {
+            return; // Сообщение уже отображено
         }
+        displayMessage(msg); // Отображение полученного сообщения
     });
 
     currentConversationChannel.bind("message_delivered", function (msg) {
@@ -81,7 +79,12 @@ function loadChat(chatData) {
 }
 
 function displayMessage(messageObj) {
-    const template = newMessageTpl.replace("{{id}}", messageObj.id).replace("{{body}}", messageObj.message);
+    const isCurrentUser = messageObj.sender_id == currentUserId;
+    const messageClass = isCurrentUser ? 'from__chat' : 'receive__chat';
+    const template = newMessageTpl.replace("{{id}}", messageObj.id)
+        .replace("{{body}}", messageObj.message)
+        .replace("{{messageClass}}", messageClass);
+
     const messageElement = $(template);
 
     messageElement.find('.__chat__').addClass(messageObj.sender_id == currentUserId ? 'from__chat' : 'receive__chat');
@@ -102,17 +105,26 @@ $('#sendMessage').click(function () {
         contact: currentContact.id,
         socket_id: socketId,
     }).done(function (data) {
-        displayMessage(data);
-        $('#msg_box').val(''); // Clear message box
+        if (data.status === 'success') {
+            // Если отправка успешна, отображаем новое сообщение
+            displayMessage(data.data);
+        } else {
+            console.error(data.message); // Обработка ошибки
+        }
+        $('#msg_box').val(''); // Очищаем текстовое поле
+    }).fail(function (jqXHR, textStatus, errorThrown) {
+        console.error("Failed to send message: ", textStatus, errorThrown);
     });
 });
 
 // User is typing
 const isTypingCallback = function () {
-    currentConversationChannel.trigger("client-is-typing", {
-        user_id: currentUserId,
-        contact_id: currentContact.id,
-    });
+    if (currentConversationChannel) {
+        currentConversationChannel.trigger("client-is-typing", {
+            user_id: currentUserId,
+            contact_id: currentContact.id,
+        });
+    }
 };
 
 $('#msg_box').on('keyup', isTypingCallback);

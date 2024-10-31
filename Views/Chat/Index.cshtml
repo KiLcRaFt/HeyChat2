@@ -1,4 +1,4 @@
-﻿@{
+﻿@* @{
     ViewBag.Title = "Chat Room";
 }
 
@@ -31,4 +31,171 @@
 <script>
     // Эти переменные станут доступными в chat.js
     const currentUserId = @ViewBag.currentUser?.id ?? 0;
+</script> *@
+
+
+@{
+    ViewBag.Title = "Chat Room";
+}
+
+<div class="chat-container">
+    <!-- Список пользователей -->
+    <div class="contacts-list">
+        <h3>Contacts</h3>
+        <ul id="contacts">
+            @foreach (var user in ViewBag.allUsers)
+            {
+                <li>
+                    <button type="button" class="user-item" data-contact-id="@user.id" data-contact-name="@user.name">@user.name</button>
+                </li>
+            }
+        </ul>
+    </div>
+
+    <!-- Окно чата -->
+    <div class="chat-window">
+        <h3 id="contact-name">Select a contact</h3>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input">
+            <input type="text" id="msg_box" placeholder="Enter your text..." />
+            <button id="sendMessage">Send</button>
+        </div>
+        <div id="typerDisplay" style="display:none;"></div> <!-- Отображение статуса "typing" -->
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+<script src="~/js/chat.js"></script>
+<script>
+    const currentUserId = @ViewBag.currentUser?.id ?? 0;
 </script>
+
+<style>
+    .chat-container {
+        display: flex;
+        width: 100%;
+        height: 90vh;
+        background-color: #e0e0e0;
+    }
+
+    .contacts-list {
+        width: 20%;
+        background-color: #68aee3;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+        .contacts-list h3 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+    #contacts {
+        list-style: none;
+        padding: 0;
+        width: 100%;
+    }
+
+        #contacts li {
+            margin-bottom: 10px;
+        }
+
+    .user-item {
+        width: 100%;
+        padding: 10px;
+        background-color: #333;
+        color: white;
+        border: none;
+        cursor: pointer;
+        text-align: center;
+        transition: background-color 0.3s;
+        outline: none;
+    }
+
+        .user-item:hover {
+            background-color: #555;
+        }
+
+        .user-item.active {
+            background-color: #005cbf;
+        }
+
+        .user-item.inactive {
+            background-color: #333;
+        }
+
+    .chat-window {
+        flex-grow: 1;
+        background-color: #d3d3d3;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+    }
+
+        .chat-window h3 {
+            background-color: #3f82c5;
+            color: white;
+            padding: 10px;
+            margin: 0;
+        }
+
+    .chat-messages {
+        flex-grow: 1;
+        background-color: #b3b3b3;
+        margin-top: 10px;
+        padding: 10px;
+        overflow-y: auto;
+    }
+
+    .message {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 10px;
+        max-width: 100%;
+        word-wrap: break-word;
+    }
+
+        .message.from__chat {
+            background-color: #a3c2f1;
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .message.receive__chat {
+            background-color: #ffffff;
+            align-self: flex-start;
+            text-align: left;
+        }
+
+    .delivery-status {
+        font-size: 0.8em;
+        color: gray;
+        margin-top: 5px;
+    }
+
+    .chat-input {
+        display: flex;
+        background-color: #7db9e8;
+        padding: 10px;
+    }
+
+    #msg_box {
+        flex-grow: 1;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        margin-right: 10px;
+    }
+
+    #sendMessage {
+        background-color: #3f82c5;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+</style>

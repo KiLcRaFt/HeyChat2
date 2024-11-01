@@ -6,10 +6,10 @@ namespace HeyChat2.Controllers
 {
     public class ChatController : Controller
     {
-        private readonly ChatContext _context; // Храните контекст базы данных
+        private readonly ChatContext _context;
         private readonly Pusher _pusher;
 
-        // Конструктор класса с Dependency Injection
+        // Class constructor with Dependency Injection
         public ChatController(ChatContext context)
         {
             _context = context;
@@ -19,7 +19,7 @@ namespace HeyChat2.Controllers
 
         public ActionResult Index()
         {
-            // Получаем Id пользователя из сессии
+            // Get user Id from session
             var userId = HttpContext.Session.GetInt32("userId");
 
             if (!userId.HasValue)
@@ -27,7 +27,7 @@ namespace HeyChat2.Controllers
                 return Redirect("/");
             }
 
-            var currentUser = _context.Users.Find(userId.Value); // Находим пользователя по Id
+            var currentUser = _context.Users.Find(userId.Value); // Find user by Id
 
             ViewBag.allUsers = _context.Users
                 .Where(u => u.name != currentUser.name)
@@ -67,30 +67,27 @@ namespace HeyChat2.Controllers
                 return Json(new { status = "error", message = "User is not logged in" });
             }
 
-            // Создание нового сообщения
+            // Creating a new message
             var newConversation = new Conversation
             {
                 sender_id = userId.Value,
                 receiver_id = contact,
                 message = message,
                 created_at = DateTime.Now,
-                status = Conversation.messageStatus.Sent // Устанавливаем статус "Sent"
+                status = Conversation.messageStatus.Sent 
             };
 
             try
             {
-                // Добавляем новое сообщение в базу данных
                 _context.Conversations.Add(newConversation);
-                await _context.SaveChangesAsync(); // Используем асинхронное сохранение
+                await _context.SaveChangesAsync();
             }
             catch (Exception ex)
             {
-                // Логируем ошибку и возвращаем сообщение об ошибке
                 Console.WriteLine($"Error saving message: {ex.Message}");
                 return Json(new { status = "error", message = "Failed to send message." });
             }
 
-            // Настройка Pusher для отправки события о новом сообщении
             var options = new PusherOptions
             {
                 Cluster = "eu"
@@ -115,7 +112,7 @@ namespace HeyChat2.Controllers
 
             try
             {
-                // Отправляем событие через Pusher
+                // Sending an event via Pusher
                 await pusher.TriggerAsync(
                     $"private-chat-{Math.Min(userId.Value, contact)}-{Math.Max(userId.Value, contact)}",
                     "new_message",
@@ -125,15 +122,10 @@ namespace HeyChat2.Controllers
             }
             catch (Exception ex)
             {
-                // Логируем ошибку и возвращаем сообщение об ошибке
                 Console.WriteLine($"Error triggering Pusher event: {ex.Message}");
                 return Json(new { status = "error", message = "Failed to notify recipient." });
             }
 
-            // Логируем отправленное сообщение
-            Console.WriteLine($"New Message: {newConversation.message}, Sender ID: {newConversation.sender_id}, Receiver ID: {newConversation.receiver_id}");
-
-            // Возвращаем успешный ответ
             return Json(new { status = "success", data = eventData });
         }
 

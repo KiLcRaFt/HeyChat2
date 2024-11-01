@@ -10,23 +10,25 @@ const newMessageTpl = `
     </div>`;
 
 // Pusher client setup
-const pusher = new Pusher('1887209', { cluster: 'eu' });
-
-pusher.connection.bind('connected', function () {
-    socketId = pusher.connection.socket_id;
-});
+const pusher = new Pusher('c38879c0eb230cbf0252', { cluster: 'eu' });
 
 function getConvoChannel(user_id, contact_id) {
     return user_id > contact_id ? `private-chat-${contact_id}-${user_id}` : `private-chat-${user_id}-${contact_id}`;
 }
 
 function bindClientEvents() {
+    if (!currentConversationChannel) {
+        console.warn('No current conversation channel found.');
+        return;
+    }
+
     currentConversationChannel.bind("new_message", function (msg) {
-        // Проверка, чтобы не дублировать сообщение, если оно отправлено самим пользователем
+        console.log("New message received: ", msg);
         if (msg.sender_id === currentUserId && msg.receiver_id === currentContact.id) {
-            return; // Сообщение уже отображено
+            return;
         }
-        displayMessage(msg); // Отображение полученного сообщения
+
+        displayMessage(msg);
     });
 
     currentConversationChannel.bind("message_delivered", function (msg) {
@@ -57,13 +59,17 @@ $('.user-item').click(function (e) {
     currentConversationChannel = pusher.subscribe(conversationChannelName);
 
     bindClientEvents();
-    $('#contacts').find('li').removeClass('active');
+
+    $('#contacts').find('.user-item').removeClass('active');
+
     $(this).addClass('active');
 
-    $('#contact-name').text(currentContact.name); // Отображаем выбранное имя
+    $('#contact-name').text(currentContact.name);
 
     getChat(currentContact.id);
 });
+
+
 
 function getChat(contact_id) {
     $.get(`/chat/ConversationWithContact?contact=${contact_id}`)
@@ -93,7 +99,11 @@ function displayMessage(messageObj) {
     }
 
     $('#chat-messages').append(messageElement);
+
+    const chatMessages = $('#chat-messages');
+    chatMessages.scrollTop(chatMessages[0].scrollHeight);
 }
+
 
 // Send button's click event
 $('#sendMessage').click(function () {
@@ -106,12 +116,12 @@ $('#sendMessage').click(function () {
         socket_id: socketId,
     }).done(function (data) {
         if (data.status === 'success') {
-            // Если отправка успешна, отображаем новое сообщение
+            // If sending was successful, display the new message
             displayMessage(data.data);
         } else {
-            console.error(data.message); // Обработка ошибки
+            console.error(data.message);
         }
-        $('#msg_box').val(''); // Очищаем текстовое поле
+        $('#msg_box').val(''); // Clear the message box
     }).fail(function (jqXHR, textStatus, errorThrown) {
         console.error("Failed to send message: ", textStatus, errorThrown);
     });

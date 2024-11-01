@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http; // Не забудьте импортировать эту библиотеку для работы с сессиями
+using Microsoft.AspNetCore.Http;
 using HeyChat2.Models;
 using PusherServer;
 
@@ -9,7 +9,6 @@ namespace HeyChat2.Controllers
     {
         private readonly ChatContext _context;
 
-        // Внедрение ChatContext через конструктор
         public AuthController(ChatContext context)
         {
             _context = context;
@@ -35,10 +34,10 @@ namespace HeyChat2.Controllers
 
             if (string.IsNullOrWhiteSpace(user_name))
             {
-                return Redirect("/"); // Переход на главную страницу, если имя пользователя пустое
+                return Redirect("/");
             }
 
-            // Используем уже внедренный контекст базы данных
+            // Using an already implemented database context
             User user = _context.Users.FirstOrDefault(u => u.name == user_name);
 
             if (user == null)
@@ -48,15 +47,14 @@ namespace HeyChat2.Controllers
                 _context.SaveChanges();
             }
 
-            // Сохраняем только Id пользователя в сессии
+            // Save only the user Id in the session
             HttpContext.Session.SetInt32("userId", user.id);
 
-            return Redirect("/chat"); // Переход на страницу чата после успешного логина
+            return Redirect("/chat");
         }
 
         public JsonResult AuthForChannel(string channel_name, string socket_id)
         {
-            // Получаем пользователя из сессии
             var userId = HttpContext.Session.GetInt32("userId");
 
             if (!userId.HasValue)
@@ -64,7 +62,7 @@ namespace HeyChat2.Controllers
                 return Json(new { status = "error", message = "User is not logged in" });
             }
 
-            var currentUser = _context.Users.Find(userId.Value); // Находим текущего пользователя по Id
+            var currentUser = _context.Users.Find(userId.Value);
 
             if (currentUser == null)
             {

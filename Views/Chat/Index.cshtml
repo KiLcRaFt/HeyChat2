@@ -1,45 +1,8 @@
-﻿@* @{
+﻿@{
     ViewBag.Title = "Chat Room";
 }
 
 <div class="chat-container">
-    <!-- Список пользователей -->
-    <div class="contacts-list">
-        <h3>Контакты</h3>
-        <ul id="contacts">
-            @foreach (var user in ViewBag.allUsers)
-            {
-                <li>
-                    <input type="button" class="user-item" data-contact-id="@user.id" data-contact-name="@user.name" value="@user.name" />
-                </li>
-            }
-        </ul>
-    </div>
-
-    <!-- Окно чата -->
-    <div class="chat-window">
-        <h3>Чат с <span id="contact-name">Выберите пользователя</span></h3>
-        <div id="chat-messages" class="chat-messages"></div>
-        <input type="text" id="msg_box" placeholder="Введите сообщение..." />
-        <button id="sendMessage">Отправить</button>
-        <div id="typerDisplay" style="display:none;"></div> <!-- Отображение статуса "typing" -->
-    </div>
-</div>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://js.pusher.com/7.0/pusher.min.js"></script>
-<script src="~/js/chat.js"></script>
-<script>
-    // Эти переменные станут доступными в chat.js
-    const currentUserId = @ViewBag.currentUser?.id ?? 0;
-</script> *@
-
-
-@{
-    ViewBag.Title = "Chat Room";
-}
-
-<div class="chat-container">
-    <!-- Список пользователей -->
     <div class="contacts-list">
         <h3>Contacts</h3>
         <ul id="contacts">
@@ -52,15 +15,14 @@
         </ul>
     </div>
 
-    <!-- Окно чата -->
     <div class="chat-window">
         <h3 id="contact-name">Select a contact</h3>
         <div id="chat-messages" class="chat-messages"></div>
+        <div id="typerDisplay" style="display:none;"></div>
         <div class="chat-input">
             <input type="text" id="msg_box" placeholder="Enter your text..." />
             <button id="sendMessage">Send</button>
         </div>
-        <div id="typerDisplay" style="display:none;"></div> <!-- Отображение статуса "typing" -->
     </div>
 </div>
 
